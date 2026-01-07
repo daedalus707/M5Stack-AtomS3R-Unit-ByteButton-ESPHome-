@@ -1,0 +1,158 @@
+esphome:
+  name: m5stack-atoms3r
+  friendly_name: M5Stack_AtomS3R
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+
+# Correct I2C pins confirmed via scan (G2=SDA, G1=SCL)
+i2c:
+  - sda: 2
+    scl: 1
+    scan: true
+    id: bus_a
+
+globals:
+  - id: byte_button_raw
+    type: uint8_t
+    restore_value: no
+    initial_value: '0xFF' # Default to 1 (all buttons inactive/released)
+
+# Low-level I2C polling with logic inversion
+interval:
+  - interval: 100ms
+    then:
+      - lambda: |-
+          uint8_t reg = 0x00; // Button status register
+          uint8_t data = 0;
+          if (id(bus_a)->write(0x47, &reg, 1) == esphome::i2c::ERROR_OK) {
+            if (id(bus_a)->read(0x47, &data, 1) == esphome::i2c::ERROR_OK) {
+              id(byte_button_raw) = data;
+            }
+          }
+
+logger:
+  level: INFO
+
+api:
+  encryption:
+    key: "PUT_HERE_YOUR_ENCRYPTION_KEY"
+
+ota:
+  - platform: esphome
+    password: "PUT_HERE_YOUR_OTA_PASSWORD_KEY"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+binary_sensor:
+  # On-board button (GPIO 41)
+  - platform: gpio
+    pin:
+      number: 41
+      inverted: true
+    name: "Main Atom Button"
+
+  # 8 ByteButton inputs with logic negation (!)
+  - platform: template
+    name: "ByteButton 0"
+    lambda: 'return !((id(byte_button_raw) >> 0) & 1);'
+  - platform: template
+    name: "ByteButton 1"
+    lambda: 'return !((id(byte_button_raw) >> 1) & 1);'
+  - platform: template
+    name: "ByteButton 2"
+    lambda: 'return !((id(byte_button_raw) >> 2) & 1);'
+  - platform: template
+    name: "ByteButton 3"
+    lambda: 'return !((id(byte_button_raw) >> 3) & 1);'
+  - platform: template
+    name: "ByteButton 4"
+    lambda: 'return !((id(byte_button_raw) >> 4) & 1);'
+  - platform: template
+    name: "ByteButton 5"
+    lambda: 'return !((id(byte_button_raw) >> 5) & 1);'
+  - platform: template
+    name: "ByteButton 6"
+    lambda: 'return !((id(byte_button_raw) >> 6) & 1);'
+  - platform: template
+    name: "ByteButton 7"
+    lambda: 'return !((id(byte_button_raw) >> 7) & 1);'
+
+button:
+  - platform: template
+    name: "Clear All LEDs"
+    id: clear_all_leds_btn
+    on_press:
+      - lambda: |-
+          for(int i=0x20; i<=0x42; i++) {
+            uint8_t cmd[2] = {(uint8_t)i, 0};
+            id(bus_a)->write(0x47, cmd, 2);
+          }
+
+switch:
+  # Master toggle for all LEDs (set to Red)
+  - platform: template
+    name: "All LEDs Red"
+    optimistic: true
+    turn_on_action:
+      - lambda: |-
+          for(int i=0; i<8; i++) {
+            uint8_t reg_red = 0x20 + (i * 4) + 2; // R = Base + 2 in BGR system
+            uint8_t cmd[2] = {reg_red, 255};
+            id(bus_a)->write(0x47, cmd, 2);
+          }
+    turn_off_action:
+      - button.press: clear_all_leds_btn
+
+  # Individual LED toggles 0-7 (Defaulted to Red for testing)
+  - platform: template
+    name: "LED 0"
+    optimistic: true
+    turn_on_action: {lambda: 'uint8_t cmd[2]={0x22,255}; id(bus_a)->write(0x47,cmd,2);'}
+    turn_off_action: {lambda: 'uint8_t cmd[2]={0x22,0}; id(bus_a)->write(0x47,cmd,2);'}
+
+  - platform: template
+    name: "LED 1"
+    optimistic: true
+    turn_on_action: {lambda: 'uint8_t cmd[2]={0x26,255}; id(bus_a)->write(0x47,cmd,2);'}
+    turn_off_action: {lambda: 'uint8_t cmd[2]={0x26,0}; id(bus_a)->write(0x47,cmd,2);'}
+
+  - platform: template
+    name: "LED 2"
+    optimistic: true
+    turn_on_action: {lambda: 'uint8_t cmd[2]={0x2A,255}; id(bus_a)->write(0x47,cmd,2);'}
+    turn_off_action: {lambda: 'uint8_t cmd[2]={0x2A,0}; id(bus_a)->write(0x47,cmd,2);'}
+
+  - platform: template
+    name: "LED 3"
+    optimistic: true
+    turn_on_action: {lambda: 'uint8_t cmd[2]={0x2E,255}; id(bus_a)->write(0x47,cmd,2);'}
+    turn_off_action: {lambda: 'uint8_t cmd[2]={0x2E,0}; id(bus_a)->write(0x47,cmd,2);'}
+
+  - platform: template
+    name: "LED 4"
+    optimistic: true
+    turn_on_action: {lambda: 'uint8_t cmd[2]={0x32,255}; id(bus_a)->write(0x47,cmd,2);'}
+    turn_off_action: {lambda: 'uint8_t cmd[2]={0x32,0}; id(bus_a)->write(0x47,cmd,2);'}
+
+  - platform: template
+    name: "LED 5"
+    optimistic: true
+    turn_on_action: {lambda: 'uint8_t cmd[2]={0x36,255}; id(bus_a)->write(0x47,cmd,2);'}
+    turn_off_action: {lambda: 'uint8_t cmd[2]={0x36,0}; id(bus_a)->write(0x47,cmd,2);'}
+
+  - platform: template
+    name: "LED 6"
+    optimistic: true
+    turn_on_action: {lambda: 'uint8_t cmd[2]={0x3A,255}; id(bus_a)->write(0x47,cmd,2);'}
+    turn_off_action: {lambda: 'uint8_t cmd[2]={0x3A,0}; id(bus_a)->write(0x47,cmd,2);'}
+
+  - platform: template
+    name: "LED 7"
+    optimistic: true
+    turn_on_action: {lambda: 'uint8_t cmd[2]={0x3E,255}; id(bus_a)->write(0x47,cmd,2);'}
+    turn_off_action: {lambda: 'uint8_t cmd[2]={0x3E,0}; id(bus_a)->write(0x47,cmd,2);'}
